@@ -1,0 +1,17 @@
+{
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "tests",
+    "-p",
+    "*_test.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.nosetestsEnabled": false,
+  "python.testing.unittestEnabled": true,
+  "python.pythonPath": "C:\\Users\\joshpc\\Anaconda3\\python.exe",
+  "git.ignoreLimitWarning": true,
+  "python.testing.nosetestArgs": [
+    "tests"
+  ]
+}
