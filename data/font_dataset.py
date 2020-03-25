@@ -1,15 +1,21 @@
+import os
+
 import torch
 from torch.utils.data import Dataset
-import os
+import torchvision.transforms as transforms
+
 from PIL import Image
 
 class FontData():
-  def __init__(self, font_name, font_path):
+  def __init__(self, font_name, font_path, image=None):
     self.font_name = font_name
     self.font_path = font_path
+    self.image = None
 
   def load_data(self, loader):
-    self.image = loader(self.font_path)
+    if self.image == None:
+      self.image = loader(self.font_path)
+    return self.image
 
   def __repr__(self):
     return "<FontData font_name: %s>" % self.font_name
@@ -33,7 +39,16 @@ class FontDataset(Dataset):
     if torch.is_tensor(_index):
       _index = _index.tolist()
 
-    return self.fonts[_index]
+    font = self.fonts[_index]
+    font_data = font.load_data(image_loader)
+
+    transform = transforms.Compose([
+      transforms.Resize(256),
+      transforms.ToTensor(),
+      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+
+    return transform(font_data)
 
   def load_font_filenames(self, root_dir):
     font_images = []
