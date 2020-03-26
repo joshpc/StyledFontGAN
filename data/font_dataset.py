@@ -42,10 +42,11 @@ class FontDataset(Dataset):
     font = self.fonts[_index]
     font_data = font.load_data(image_loader)
 
+    #TODO: Our images are 64 x 1664 -- This should be a parameter/configuration option.
     transform = transforms.Compose([
-      transforms.Resize(256),
-      transforms.ToTensor(),
-      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+      transforms.Grayscale(), # Drop to 1 channel
+      transforms.Resize((16, 416)),
+      transforms.ToTensor()
     ])
 
     return transform(font_data)
@@ -63,4 +64,5 @@ class FontDataset(Dataset):
 # Helper Functions
 
 def image_loader(path):
+  # Convert to greyscale
   return Image.open(path).convert('RGB')

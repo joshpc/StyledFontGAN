@@ -9,7 +9,7 @@ from data.font_dataset import FontDataset
 class TestFontDatasets(unittest.TestCase):
   def test_cannot_create_invalid_font_dataset(self):
     with self.assertRaises(AssertionError):
-      dataset = FontDataset('does_not_exist')
+      FontDataset('does_not_exist')
 
   def test_can_create_font_dataset(self):
     dataset = FontDataset(abspath(join(dirname(__file__), 'test_datasets/valid')))
