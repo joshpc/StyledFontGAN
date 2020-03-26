@@ -14,8 +14,6 @@ class TestFontDatasets(unittest.TestCase):
   def test_can_create_font_dataset(self):
     dataset = FontDataset(abspath(join(dirname(__file__), 'test_datasets/valid')))
     self.assertEqual(1, len(dataset))
-    font = dataset[0]
-    self.assertEqual(font.font_name, 'Aaargh.0.0.png')
 
   def test_length_of_empty_folder(self):
     dataset = FontDataset(abspath(join(dirname(__file__), 'test_datasets/empty')))
