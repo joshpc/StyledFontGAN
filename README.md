@@ -6,3 +6,5 @@ A GAN that will generate fonts given style images
 2. For now, you will also need a tool to view notebooks. I use Jupyter.
 3. You need the font dataset. Sneakernet for now.
 
+## Optional
+1. Install PyTorchViz `pip install torchviz`

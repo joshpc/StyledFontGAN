@@ -21,6 +21,8 @@ def build_font_shape_generator(image_size=(64, 64, 1), dimension=16):
     # # 128 features
     # nn.BatchNorm2d(8 * dimension),
 
+    nn.ConvTranspose2d(in_channels=image_size[2], out_channels=(8 * dimension), kernel_size=5),
+
     # Fractionally Strided Conv 1
     # 128 features -> 64 features
     nn.ConvTranspose2d(8 * dimension, 4 * dimension, 4, 2, 1),
