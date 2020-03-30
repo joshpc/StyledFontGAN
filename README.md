@@ -7,4 +7,4 @@ A GAN that will generate fonts given style images
 3. You need the font dataset. Sneakernet for now.
 
 ## Optional
-1. Install PyTorchViz `pip install torchviz`
+1. Install PyTorchViz to visualize the network.

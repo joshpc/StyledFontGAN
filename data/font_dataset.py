@@ -45,7 +45,6 @@ class FontDataset(Dataset):
     #TODO: Our images are 64 x 1664 -- This should be a parameter/configuration option.
     transform = transforms.Compose([
       transforms.Grayscale(), # Drop to 1 channel
-      transforms.Resize((16, 416)),
       transforms.ToTensor()
     ])
 
