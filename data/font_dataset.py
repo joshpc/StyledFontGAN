@@ -1,15 +1,21 @@
+import os
+
 import torch
 from torch.utils.data import Dataset
-import os
+import torchvision.transforms as transforms
+
 from PIL import Image
 
 class FontData():
-  def __init__(self, font_name, font_path):
+  def __init__(self, font_name, font_path, image=None):
     self.font_name = font_name
     self.font_path = font_path
+    self.image = None
 
   def load_data(self, loader):
-    self.image = loader(self.font_path)
+    if self.image == None:
+      self.image = loader(self.font_path)
+    return self.image
 
   def __repr__(self):
     return "<FontData font_name: %s>" % self.font_name
@@ -17,13 +23,13 @@ class FontData():
 class FontDataset(Dataset):
   """The Font Dataset."""
 
-  def __init__(self, root_dir, number_of_characters_per_image=10, transform=None):
+  def __init__(self, root_dir, glyph_size=(64, 64), glyphs_per_image=26):
     """
     """
     self.fonts = self.load_font_filenames(root_dir)
     self.root_dir = root_dir
-    self.number_of_characters_per_image = number_of_characters_per_image
-    self.transform = transform
+    self.glyph_size = glyph_size
+    self.glyphs_per_image = glyphs_per_image
 
   def __len__(self):
     return len(self.fonts)
@@ -33,7 +39,16 @@ class FontDataset(Dataset):
     if torch.is_tensor(_index):
       _index = _index.tolist()
 
-    return self.fonts[_index]
+    font = self.fonts[_index]
+    font_data = font.load_data(image_loader)
+
+    transform = transforms.Compose([
+      transforms.Resize((self.glyph_size[0], self.glyph_size[1] * self.glyphs_per_image)),
+      transforms.Grayscale(num_output_channels=1), # Drop to 1 channel
+      transforms.ToTensor()
+    ])
+
+    return transform(font_data)
 
   def load_font_filenames(self, root_dir):
     font_images = []
