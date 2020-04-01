@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-def build_font_shape_generator(image_size=(64, 64, 1), dimension=16):
+def build_font_shape_generator(glyph_size=(64, 64, 1), glyph_count=26, dimension=16):
   #TODO: Describe how flatten/unflattening should work.
   """
   Generator model for our GAN.
@@ -37,9 +37,9 @@ def build_font_shape_generator(image_size=(64, 64, 1), dimension=16):
   # Attempt 3
   # Go small, end small. Use a separate network to grow.
 
-  return simple_upscale_degenrator(dimension)
+  return intermediate_generator(glyph_size=glyph_size, glyph_count=glyph_count, dimension=dimension)
 
-def simple_upscale_degenrator(dimension):
+def simple_upscale_generator(dimension):
   """
   A generator that performs several ConvTranpsose2D Operations to upscale an image from `individual_image_size` to `final_image_size`. The dimensions of `final_image_size` must be an integer multiple of `individual_image_size.`
 
@@ -71,6 +71,35 @@ def simple_upscale_degenrator(dimension):
     nn.ReLU(),
 
     # # Reduce dimensionality back to 1!
+    nn.ConvTranspose2d(in_channels=dimension, out_channels=1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+    nn.Sigmoid()
+  )
+
+def intermediate_generator(glyph_size=(64, 64), glyph_count=26, dimension=16):
+  linear_width = int(2 * dimension * glyph_size[0] / 4 * glyph_size[1] / 4)
+  hidden_width = int(glyph_size[0] * glyph_size[1])
+  final_width = int(glyph_size[0] * glyph_size[1] * glyph_count * dimension)
+
+  return nn.Sequential(
+    # Take a look at the image
+    nn.Conv2d(1, dimension, 4, 2, 1),
+    nn.LeakyReLU(0.2),
+
+    nn.Conv2d(dimension, 2 * dimension, 4, 2, 1),
+    nn.LeakyReLU(0.2),
+
+    # Move to an internal representation
+    Flatten(),
+
+    nn.Linear(in_features=linear_width, out_features=hidden_width),
+    nn.ReLU(),
+
+    nn.Linear(hidden_width, final_width),
+    nn.ReLU(),
+
+    # Convert back to an image and upscale
+    Unflatten(C=dimension, H=glyph_size[0], W=glyph_size[1] * glyph_count),
+
     nn.ConvTranspose2d(in_channels=dimension, out_channels=1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
     nn.Sigmoid()
   )
@@ -137,3 +166,7 @@ class Unflatten(nn.Module):
 
   def forward(self, x):
       return x.view(self.N, self.C, self.H, self.W)
+
+def initialize_weights(m):
+  if isinstance(m, nn.Linear) or isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
+    nn.init.xavier_uniform_(m.weight.data)

@@ -23,13 +23,13 @@ class FontData():
 class FontDataset(Dataset):
   """The Font Dataset."""
 
-  def __init__(self, root_dir, number_of_characters_per_image=10, transform=None):
+  def __init__(self, root_dir, glyph_size=(64, 64), glyphs_per_image=26):
     """
     """
     self.fonts = self.load_font_filenames(root_dir)
     self.root_dir = root_dir
-    self.number_of_characters_per_image = number_of_characters_per_image
-    self.transform = transform
+    self.glyph_size = glyph_size
+    self.glyphs_per_image = glyphs_per_image
 
   def __len__(self):
     return len(self.fonts)
@@ -42,9 +42,9 @@ class FontDataset(Dataset):
     font = self.fonts[_index]
     font_data = font.load_data(image_loader)
 
-    #TODO: Our images are 64 x 1664 -- This should be a parameter/configuration option.
     transform = transforms.Compose([
-      transforms.Grayscale(), # Drop to 1 channel
+      transforms.Resize((self.glyph_size[0], self.glyph_size[1] * self.glyphs_per_image)),
+      transforms.Grayscale(num_output_channels=1), # Drop to 1 channel
       transforms.ToTensor()
     ])
 
@@ -63,5 +63,4 @@ class FontDataset(Dataset):
 # Helper Functions
 
 def image_loader(path):
-  # Convert to greyscale
   return Image.open(path).convert('RGB')
