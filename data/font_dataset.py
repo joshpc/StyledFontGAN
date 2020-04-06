@@ -24,8 +24,6 @@ class FontDataset(Dataset):
   """The Font Dataset."""
 
   def __init__(self, root_dir, glyph_size=(64, 64), glyphs_per_image=26):
-    """
-    """
     self.fonts = self.load_font_filenames(root_dir)
     self.root_dir = root_dir
     self.glyph_size = glyph_size
@@ -43,7 +41,7 @@ class FontDataset(Dataset):
     font_data = font.load_data(image_loader)
 
     transform = transforms.Compose([
-      transforms.Resize((self.glyph_size[0], self.glyph_size[1] * self.glyphs_per_image)),
+      transforms.Resize(self.glyph_size[0]),
       transforms.Grayscale(num_output_channels=1), # Drop to 1 channel
       transforms.ToTensor()
     ])

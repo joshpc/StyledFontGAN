@@ -78,29 +78,47 @@ def simple_upscale_generator(dimension):
 def intermediate_generator(glyph_size=(64, 64), glyph_count=26, dimension=16):
   linear_width = int(2 * dimension * glyph_size[0] / 4 * glyph_size[1] / 4)
   hidden_width = int(glyph_size[0] * glyph_size[1])
-  final_width = int(glyph_size[0] * glyph_size[1] * glyph_count * dimension)
+  # Final 2 * 2 is because we Conv Trans 3 times: 2x2 -> 4x4 -> 8x8 -> 16x16
+  final_width = int(4 * dimension * glyph_count * 2 * 2)
 
   return nn.Sequential(
-    # Take a look at the image
+    # (1, 64, 64) -> (D, 32, 32)
     nn.Conv2d(1, dimension, 4, 2, 1),
     nn.LeakyReLU(0.2),
 
+    # (D, 32, 32) -> (2D, 16, 16)
     nn.Conv2d(dimension, 2 * dimension, 4, 2, 1),
     nn.LeakyReLU(0.2),
 
-    # Move to an internal representation
+    # (2D, 16, 16) -> (1, 256 * D)
     Flatten(),
 
+    # 256D -> 4096
     nn.Linear(in_features=linear_width, out_features=hidden_width),
     nn.ReLU(),
 
+    # 4096 -> 16 * 16 * 26 * D
+    # = 6656 D
     nn.Linear(hidden_width, final_width),
     nn.ReLU(),
 
-    # Convert back to an image and upscale
-    Unflatten(C=dimension, H=glyph_size[0], W=glyph_size[1] * glyph_count),
+    # 6656 D -> (4D, 16, 416)
+    Unflatten(C=dimension * 4, H=2, W=2 * glyph_count),
+    nn.BatchNorm2d(dimension * 4),
 
-    nn.ConvTranspose2d(in_channels=dimension, out_channels=1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+    # Fractionally Strided Conv 1
+    nn.ConvTranspose2d(4 * dimension, 2 * dimension, 4, 2, 1), #4 * 4 * GC * 2D
+    nn.BatchNorm2d(2 * dimension),
+    nn.ReLU(),
+
+    # Fractionally Strided Conv 2
+    nn.ConvTranspose2d(2 * dimension, dimension, 4, 2, 1), #8 * 8 * GC * D
+    nn.BatchNorm2d(dimension),
+    nn.ReLU(),
+
+    # Fractionally Strided Conv 3
+    # (D, 16, 416) -> (1, 16, 416)
+    nn.ConvTranspose2d(dimension, 1, 4, 2, 1), # 16 * 16 * GC * 1
     nn.Sigmoid()
   )
 
@@ -109,8 +127,8 @@ def build_font_shape_discriminator(image_size=(64, 1664), dimension=16):
   PyTorch model implementing the GlyphGAN critic.
 
   Inputs:
-  - `image_size`: The size of the images (W, H) tuple. (32, 32)
-  - `dimension`: The dpeth of the noise, defaults to 16.
+  - `image_size`: The size of the entire alphabet (usually (H, W * 26))
+  - `dimension`: The filter depth after each conv. Doubles per conv layer (1 - > 2 -> 4 -> 8)
   """
 
   output_size = int(8 * dimension * (image_size[0] / 16) * (image_size[1] / 16))

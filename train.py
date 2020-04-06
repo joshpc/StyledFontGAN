@@ -5,6 +5,7 @@ import torch
 from torch.autograd import grad as torch_grad
 
 # Visualization
+from torch.utils.tensorboard import SummaryWriter
 from livelossplot import PlotLosses
 from util import show_grayscale_image
 
@@ -12,6 +13,8 @@ def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, 
   """
   Main training loop for StyledFontGAN.
   """
+  writer = SummaryWriter()
+
   liveloss = PlotLosses()
   losses = {'G': [], 'D': [], 'GP': [], 'gradient_norm': [], 'Generated': [], 'Real': []}
 
@@ -20,16 +23,26 @@ def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, 
     static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
     show_grayscale_image(static_test[0].cpu())
     print('=== Initial Output ===')
-    show_grayscale_image(G(static_test)[0].cpu())
+
+    generated_data = G(static_test)
+    show_grayscale_image(generated_data[0].cpu())
+
+    writer.add_graph(D, reshape_generated_data(generated_data, glyph_size, glyphs_per_image))
+    writer.add_graph(G, static_test)
     break
 
   for epoch in range(epoch_count):
     epoch_start_time = time.time()
 
-    # print("{} - Starting".format(int(epoch)))
     train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses)
-    # print("{} --- G: {:4} | D: {:.4} | GP: {:.4} | gradient_norm: {:.4} | Gen: {:.4} | Real: {:.4} --- Total time: {}".format(int(epoch + 1), losses['G'][-1], losses['D'][-1], losses['GP'][-1], losses['gradient_norm'][-1], losses['Generated'][-1], losses['Real'][-1], (time.time() - epoch_start_time)))
 
+    writer.add_scalar('Loss/G', losses['G'][-1], epoch)
+    writer.add_scalar('Loss/D', losses['D'][-1], epoch)
+    writer.add_scalar('Loss/GP', losses['GP'][-1], epoch)
+    writer.add_scalar('Loss/gradient_norm', losses['gradient_norm'][-1], epoch)
+    writer.add_scalar('Loss/Generated', losses['Generated'][-1], epoch)
+    writer.add_scalar('Loss/Real', losses['Real'][-1], epoch)
+    writer.add_scalar('Debug/EpochLength', epoch_start_time, epoch)
     liveloss.update({
       'G': losses['G'][-1],
       'D': losses['D'][-1],
@@ -41,6 +54,8 @@ def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, 
     liveloss.send()
 
     show_grayscale_image(G(static_test)[0].cpu())
+
+  writer.close()
 
 def train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses):
   steps = 0
@@ -92,18 +107,19 @@ def train_discriminator(D, G, D_optimizer, data, glyph_size, glyphs_per_image, l
   # Prepare the data
   generator_input = prepare_generator_input(data, glyph_size, glyphs_per_image)
   generated_data = reshape_generated_data(G(generator_input), glyph_size, glyphs_per_image)
+  real_data = reshape_real_data(data, glyph_size, glyphs_per_image)
 
   # show_grayscale_image(reshape_generated_data(generated_data, glyph_size, glyphs_per_image)[0].cpu())
   # show_grayscale_image(data[0].cpu())
-  real_loss = D(data)
+  real_loss = D(real_data)
   generated_loss = D(generated_data)
 
   # Calculate gradient penalty
-  gradient_penalty = calculate_gradient_penalty(D, data, generated_data, batch_size, gradient_penalty_weight, losses, data_type)
+  gradient_penalty = calculate_gradient_penalty(D, real_data, generated_data, batch_size, gradient_penalty_weight, losses, data_type)
   losses['GP'].append(gradient_penalty.data)
 
   # Calculate the Wasserstein Distance.
-  loss = generated_loss.mean() - real_loss.mean()
+  loss = generated_loss.mean() - real_loss.mean() + gradient_penalty
   loss.backward()
   losses['Generated'].append(generated_loss.mean().data)
   losses['Real'].append(real_loss.mean().data)
@@ -118,9 +134,12 @@ def prepare_generator_input(image_data, glyph_size, glyphs_per_image):
   image_width = glyph_size[1]
   return image_data[:,:,:,base * image_width:(base + 1) * image_width]
 
+def reshape_real_data(real_data, glyph_size, glyphs_per_image):
+  return real_data[:, :, :, 0:(glyphs_per_image * glyph_size[1])]
+
 def reshape_generated_data(generated_output, glyph_size, glyphs_per_image):
-  generated_shape = generated_output.shape
-  return generated_output
+  # generated_shape = generated_output.shape
+  return generated_output[:, :, :, 0:(glyphs_per_image * glyph_size[1])]
   # # Flatten the output, then take only letters A-Z (64 x 26 = 1664) -- Ignore the dead space
   # return generated_output.reshape(
   #   generated_shape[0],
