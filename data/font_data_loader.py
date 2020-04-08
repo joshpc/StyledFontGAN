@@ -1,11 +1,11 @@
 import torch
 
 class FontDataLoader():
-  def __init__(self, dataset, batch_size, shuffle=True):
+  def __init__(self, dataset, sampler, batch_size):
     self.data_loader = torch.utils.data.DataLoader(
       dataset,
-      batch_size=batch_size,
-      shuffle=shuffle
+      sampler=sampler,
+      batch_size=batch_size
     )
 
   def __iter__(self):

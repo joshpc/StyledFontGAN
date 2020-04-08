@@ -9,6 +9,34 @@ from torch.utils.tensorboard import SummaryWriter
 from livelossplot import PlotLosses
 from util import show_grayscale_image
 
+def train_2(G, G_optimizer, batch_size, epoch_count, data_loader, data_type, glyph_size, glyphs_per_image):
+  """
+  Main training loop for StyledFontGAN.
+  """
+  liveloss = PlotLosses()
+  losses = {'G': [] }
+
+  for data in data_loader:
+    print('=== Test Font ===')
+    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
+    show_grayscale_image(static_test[0].cpu())
+    print('=== Initial Output ===')
+
+    generated_data = G(static_test)
+    show_grayscale_image(generated_data[0].cpu())
+    break
+
+  for epoch in range(epoch_count):
+    train_epoch_2(G, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses)
+
+    liveloss.update({
+      'G': losses['G'][-1],
+    })
+    liveloss.send()
+
+    show_grayscale_image(static_test[0].cpu())
+    show_grayscale_image(G(static_test)[0].cpu())
+
 def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, data_type, glyph_size, glyphs_per_image):
   """
   Main training loop for StyledFontGAN.
@@ -20,6 +48,7 @@ def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, 
 
   for data in data_loader:
     print('=== Test Font ===')
+    real_test = reshape_real_data(data, glyph_size, glyphs_per_image)
     static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
     show_grayscale_image(static_test[0].cpu())
     print('=== Initial Output ===')
@@ -53,7 +82,9 @@ def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, 
     })
     liveloss.send()
 
+    show_grayscale_image(static_test[0].cpu())
     show_grayscale_image(G(static_test)[0].cpu())
+    show_grayscale_image(real_test[0].cpu())
 
   writer.close()
 
@@ -74,9 +105,16 @@ def train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_ty
     if steps % 5 == 0:
       train_generator(D, G, G_optimizer, data, glyph_size, glyphs_per_image, losses)
 
+def train_epoch_2(G, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses):
+  for data in data_loader:
+    if len(data) % batch_size != 0:
+      continue
+    data = data.type(data_type)
+    train_generator_2(G, G_optimizer, data, glyph_size, glyphs_per_image, losses)
+
 def train_generator(D, G, G_optimizer, data, glyph_size, glyphs_per_image, losses):
   """
-  Executes one interation of training for the generator.
+  Executes one interation of training for the generator. This is a classic GAN setup.
 
   No return value.
   """
@@ -91,6 +129,25 @@ def train_generator(D, G, G_optimizer, data, glyph_size, glyphs_per_image, losse
 
   # Update the loss. We're trying to fool the discriminator to say '1, this is real'
   loss = -discriminator_loss.mean()
+  loss.backward()
+  losses['G'].append(loss.data)
+
+  G_optimizer.step()
+
+def train_generator_2(G, G_optimizer, data, glyph_size, glyphs_per_image, losses):
+  """
+  This generator is trained alone.
+
+  No return value.
+  """
+  G_optimizer.zero_grad()
+
+  # Prepare our data. We only use the letter A to seed this entire process.
+  generator_input = prepare_generator_input(data, glyph_size, glyphs_per_image)
+  generated_data = G(generator_input)
+
+  # Do a simple L1 (absolute difference) between the real and generated data
+  loss = torch.nn.L1Loss()(generated_data, reshape_real_data(data, glyph_size, glyphs_per_image))
   loss.backward()
   losses['G'].append(loss.data)
 

@@ -37,7 +37,7 @@ def build_font_shape_generator(glyph_size=(64, 64, 1), glyph_count=26, dimension
   # Attempt 3
   # Go small, end small. Use a separate network to grow.
 
-  return intermediate_generator(glyph_size=glyph_size, glyph_count=glyph_count, dimension=dimension)
+  return intermediate_generator_alt(glyph_size=glyph_size, glyph_count=glyph_count, dimension=dimension)
 
 def simple_upscale_generator(dimension):
   """
@@ -119,6 +119,59 @@ def intermediate_generator(glyph_size=(64, 64), glyph_count=26, dimension=16):
     # Fractionally Strided Conv 3
     # (D, 16, 416) -> (1, 16, 416)
     nn.ConvTranspose2d(dimension, 1, 4, 2, 1), # 16 * 16 * GC * 1
+    nn.Sigmoid()
+  )
+
+def intermediate_generator_alt(glyph_size=(16, 16), glyph_count=26, dimension=512):
+  conv_dimensions = [dimension, int(dimension / 2), int(dimension / 4)]
+  fc_layer_widths = [
+    int(conv_dimensions[2] * glyph_size[0] / 8 * glyph_size[1] / 8),
+    int(glyph_size[0] * glyph_size[1]),
+    int(glyph_size[0] / 8 * glyph_size[1] / 8 * glyph_count * dimension / 4)
+  ]
+  upconv_dimensions = [int(dimension / 4), int(dimension / 8), int(dimension / 16), 1]
+
+  return nn.Sequential(
+    # (1, 16, 16) -> (D, 8, 8)
+    nn.Conv2d(1, conv_dimensions[0], 4, 2, 1),
+    nn.LeakyReLU(0.2),
+
+    # (D, 8, 8) -> (D/2, 4, 4)
+    nn.Conv2d(conv_dimensions[0], conv_dimensions[1], 4, 2, 1),
+    nn.LeakyReLU(0.2),
+
+    # (D/2, 4, 4) -> (D/4, 2, 2)
+    nn.Conv2d(conv_dimensions[1], conv_dimensions[2], 4, 2, 1),
+    nn.LeakyReLU(0.2),
+
+    # (D/4, 2, 2) -> (1, D)
+    Flatten(),
+
+    # D -> 256 (W * H)
+    nn.Linear(in_features=fc_layer_widths[0], out_features=fc_layer_widths[1]),
+    nn.ReLU(),
+
+    # 256 -> 16 * 16 * 26 * D (W * H * GC * D/4)
+    nn.Linear(fc_layer_widths[1], fc_layer_widths[2]),
+    nn.ReLU(),
+
+    # W * G * GC * D/8 -> (D/4, H, W * GC)
+    Unflatten(C=upconv_dimensions[0], H=int(glyph_size[0] / 8), W=int(glyph_size[1] / 8) * glyph_count),
+    nn.BatchNorm2d(upconv_dimensions[0]),
+
+    # Fractionally Strided Conv 1
+    nn.ConvTranspose2d(upconv_dimensions[0], upconv_dimensions[1], 4, 2, 1), #4 * 4 * GC * D/8
+    nn.BatchNorm2d(upconv_dimensions[1]),
+    nn.ReLU(),
+
+    # Fractionally Strided Conv 2
+    nn.ConvTranspose2d(upconv_dimensions[1], upconv_dimensions[2], 4, 2, 1), #8 * 8 * GC * D/16
+    nn.BatchNorm2d(upconv_dimensions[2]),
+    nn.ReLU(),
+
+    # Fractionally Strided Conv 3
+    # (D, 16, 416) -> (1, 16, 416)
+    nn.ConvTranspose2d(upconv_dimensions[2], upconv_dimensions[3], 4, 2, 1), # 16 * 16 * GC * 1
     nn.Sigmoid()
   )
 
