@@ -1,96 +1,46 @@
 import time
 import random
+from operator import itemgetter
 
 import torch
-from torch.autograd import grad as torch_grad
+import collections
 
 # Visualization
-from torch.utils.tensorboard import SummaryWriter
 from livelossplot import PlotLosses
 from util import show_grayscale_image
 
-def train_2(G, G_optimizer, batch_size, epoch_count, data_loader, data_type, glyph_size, glyphs_per_image):
+def train(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, options):
   """
-  Main training loop for StyledFontGAN.
+  Inputs:
+    - `options`: A dictionary of options to configure the GAN. Required values:
+                    `batch_size` - (int) The size of each batch.
+                    `epoch_count` - (int) The number of epochs to run.
+                    `data_type` -
+                    `glyph_size` - (tuple or triple, [int, int, (int)]) The size of the image (H, W, C)
+                    `glyphs_per_image` - (int) The number of glyphs found on each image
+
   """
-  liveloss = PlotLosses()
-  losses = {'G': [] }
+  epoch_count = options['epoch_count']
+  losses = collections.defaultdict(list)
+  loss_plot = PlotLosses()
 
-  for data in data_loader:
-    print('=== Test Font ===')
-    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
-    show_grayscale_image(static_test[0].cpu())
-    print('=== Initial Output ===')
+  real_test, static_test = prepare_static_test(data_loader, options)
+  show_grayscale_image(real_test[0].cpu())
+  show_grayscale_image(static_test[0].cpu())
+  show_grayscale_image(G(static_test)[0].cpu())
 
-    generated_data = G(static_test)
-    show_grayscale_image(generated_data[0].cpu())
-    break
+  for _ in range(epoch_count):
+    train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options)
+    record_losses(loss_plot, losses)
 
-  for epoch in range(epoch_count):
-    train_epoch_2(G, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses)
-
-    liveloss.update({
-      'G': losses['G'][-1],
-    })
-    liveloss.send()
-
-    show_grayscale_image(static_test[0].cpu())
-    show_grayscale_image(G(static_test)[0].cpu())
-
-def train(D, G, D_optimizer, G_optimizer, batch_size, epoch_count, data_loader, data_type, glyph_size, glyphs_per_image):
-  """
-  Main training loop for StyledFontGAN.
-  """
-  writer = SummaryWriter()
-
-  liveloss = PlotLosses()
-  losses = {'G': [], 'D': [], 'GP': [], 'gradient_norm': [], 'Generated': [], 'Real': []}
-
-  for data in data_loader:
-    print('=== Test Font ===')
-    real_test = reshape_real_data(data, glyph_size, glyphs_per_image)
-    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
-    show_grayscale_image(static_test[0].cpu())
-    print('=== Initial Output ===')
-
-    generated_data = G(static_test)
-    show_grayscale_image(generated_data[0].cpu())
-
-    writer.add_graph(D, reshape_generated_data(generated_data, glyph_size, glyphs_per_image))
-    writer.add_graph(G, static_test)
-    break
-
-  for epoch in range(epoch_count):
-    epoch_start_time = time.time()
-
-    train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses)
-
-    writer.add_scalar('Loss/G', losses['G'][-1], epoch)
-    writer.add_scalar('Loss/D', losses['D'][-1], epoch)
-    writer.add_scalar('Loss/GP', losses['GP'][-1], epoch)
-    writer.add_scalar('Loss/gradient_norm', losses['gradient_norm'][-1], epoch)
-    writer.add_scalar('Loss/Generated', losses['Generated'][-1], epoch)
-    writer.add_scalar('Loss/Real', losses['Real'][-1], epoch)
-    writer.add_scalar('Debug/EpochLength', epoch_start_time, epoch)
-    liveloss.update({
-      'G': losses['G'][-1],
-      'D': losses['D'][-1],
-      'GP': losses['GP'][-1],
-      'gradient_norm': losses['gradient_norm'][-1],
-      'Gen': losses['Generated'][-1],
-      'Real': losses['Real'][-1],
-    })
-    liveloss.send()
-
-    show_grayscale_image(static_test[0].cpu())
-    show_grayscale_image(G(static_test)[0].cpu())
     show_grayscale_image(real_test[0].cpu())
+    show_grayscale_image(static_test[0].cpu())
+    show_grayscale_image(G(static_test)[0].cpu())
 
-  writer.close()
-
-def train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses):
+def train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options):
   steps = 0
-  gradient_penalty_weight = 10
+  batch_size = options['batch_size']
+  data_type = options['data_type']
 
   for data in data_loader:
     if len(data) % batch_size != 0:
@@ -99,66 +49,41 @@ def train_epoch(D, G, D_optimizer, G_optimizer, batch_size, data_loader, data_ty
 
     steps += 1
 
-    train_discriminator(D, G, D_optimizer, data, glyph_size, glyphs_per_image, losses, batch_size, gradient_penalty_weight, data_type)
+    train_discriminator(D, G, D_optimizer, D_loss, data, losses, options)
 
     # TODO: Parameterize
     if steps % 5 == 0:
-      train_generator(D, G, G_optimizer, data, glyph_size, glyphs_per_image, losses)
+      train_generator(D, G, G_optimizer, G_loss, data, losses, options)
 
-def train_epoch_2(G, G_optimizer, batch_size, data_loader, data_type, glyph_size, glyphs_per_image, losses):
-  for data in data_loader:
-    if len(data) % batch_size != 0:
-      continue
-    data = data.type(data_type)
-    train_generator_2(G, G_optimizer, data, glyph_size, glyphs_per_image, losses)
-
-def train_generator(D, G, G_optimizer, data, glyph_size, glyphs_per_image, losses):
+def train_generator(D, G, G_optimizer, G_loss, data, losses, options):
   """
   Executes one interation of training for the generator. This is a classic GAN setup.
 
   No return value.
   """
+  glyph_size, glyphs_per_image = itemgetter('glyph_size', 'glyphs_per_image')(options)
+
   G_optimizer.zero_grad()
 
   # Prepare our data. We only use the letter A to seed this entire process.
   generator_input = prepare_generator_input(data, glyph_size, glyphs_per_image)
-  generated_data = G(generator_input)
+  generated_data = reshape_generated_data(G(generator_input), glyph_size, glyphs_per_image)
+  real_data = reshape_real_data(data, glyph_size, glyphs_per_image)
 
-  # Forward pass with the discriminator
-  discriminator_loss = D(reshape_generated_data(generated_data, glyph_size, glyphs_per_image))
-
-  # Update the loss. We're trying to fool the discriminator to say '1, this is real'
-  loss = -discriminator_loss.mean()
+  loss = G_loss(D, G, real_data, generated_data, losses, options)
   loss.backward()
   losses['G'].append(loss.data)
 
   G_optimizer.step()
 
-def train_generator_2(G, G_optimizer, data, glyph_size, glyphs_per_image, losses):
-  """
-  This generator is trained alone.
-
-  No return value.
-  """
-  G_optimizer.zero_grad()
-
-  # Prepare our data. We only use the letter A to seed this entire process.
-  generator_input = prepare_generator_input(data, glyph_size, glyphs_per_image)
-  generated_data = G(generator_input)
-
-  # Do a simple L1 (absolute difference) between the real and generated data
-  loss = torch.nn.L1Loss()(generated_data, reshape_real_data(data, glyph_size, glyphs_per_image))
-  loss.backward()
-  losses['G'].append(loss.data)
-
-  G_optimizer.step()
-
-def train_discriminator(D, G, D_optimizer, data, glyph_size, glyphs_per_image, losses, batch_size, gradient_penalty_weight, data_type):
+def train_discriminator(D, G, D_optimizer, D_loss, data, losses, options):
   """
   Executes one iteration of training for the discriminator.
 
   No return value.
   """
+  glyph_size, glyphs_per_image = itemgetter('glyph_size', 'glyphs_per_image')(options)
+
   D_optimizer.zero_grad()
 
   # Prepare the data
@@ -166,25 +91,15 @@ def train_discriminator(D, G, D_optimizer, data, glyph_size, glyphs_per_image, l
   generated_data = reshape_generated_data(G(generator_input), glyph_size, glyphs_per_image)
   real_data = reshape_real_data(data, glyph_size, glyphs_per_image)
 
-  # show_grayscale_image(reshape_generated_data(generated_data, glyph_size, glyphs_per_image)[0].cpu())
-  # show_grayscale_image(data[0].cpu())
-  real_loss = D(real_data)
-  generated_loss = D(generated_data)
-
-  # Calculate gradient penalty
-  gradient_penalty = calculate_gradient_penalty(D, real_data, generated_data, batch_size, gradient_penalty_weight, losses, data_type)
-  losses['GP'].append(gradient_penalty.data)
-
-  # Calculate the Wasserstein Distance.
-  loss = generated_loss.mean() - real_loss.mean() + gradient_penalty
+  # Calculate the loss
+  loss = D_loss(D, real_data, generated_data, losses, options)
   loss.backward()
-  losses['Generated'].append(generated_loss.mean().data)
-  losses['Real'].append(real_loss.mean().data)
   losses['D'].append(loss.data)
 
+  # Perform backwards pass
   D_optimizer.step()
 
-# Helper Functions
+# --- Helper Functions ---
 
 def prepare_generator_input(image_data, glyph_size, glyphs_per_image):
   base = random.randint(0, glyphs_per_image - 1)
@@ -205,33 +120,24 @@ def reshape_generated_data(generated_output, glyph_size, glyphs_per_image):
   #   glyph_size[1] * 32
   # )[:, :, :, 0:glyph_size[1] * glyphs_per_image]
 
-def calculate_gradient_penalty(D, real_data, generated_data, batch_size, gradient_penalty_weight, losses, data_type):
-    # Calculate interpolation
-    alpha = torch.rand(batch_size, 1, 1, 1).expand_as(real_data).type(data_type)
+def record_losses(loss_plot, losses):
+  record = {}
+  for key in losses.keys():
+    record[key] = losses[key][-1]
+  loss_plot.update(record)
+  loss_plot.send()
 
-    # 'interpolated' is x-hat
-    interpolated = (alpha * real_data.data + (1 - alpha) * generated_data.data).type(data_type)
-    interpolated.requires_grad = True
+def prepare_static_test(data_loader, options):
+  real_test = None
+  static_test = None
+  glyph_size, glyphs_per_image, data_type = itemgetter('glyph_size', 'glyphs_per_image', 'data_type')(options)
 
-    # Calculate probability of interpolated examples
-    probability_interpolated = D(interpolated)
+  for data in data_loader:
+    print('=== Test Font ===')
+    real_test = reshape_real_data(data, glyph_size, glyphs_per_image)
+    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
+    print('=== Initial Output ===')
 
-    # TODO: Clean up?
-    gradients = torch_grad(outputs=probability_interpolated,
-                           inputs=interpolated,
-                           grad_outputs=torch.ones(
-                               probability_interpolated.size()).type(data_type),
-                           create_graph=True,
-                           retain_graph=True)[0]
+    break
 
-    # Gradients have shape (batch_size, num_channels, img_width, img_height),
-    # so flatten to easily take norm per example in batch
-    gradients = gradients.view(batch_size, -1)
-    losses['gradient_norm'].append(gradients.norm(2, dim=1).mean().data)
-
-    # Derivatives of the gradient close to 0 can cause problems because of
-    # the square root, so manually calculate norm and add epsilon
-    gradients_norm = torch.sqrt(torch.sum(gradients ** 2, dim=1) + 1e-12)
-
-    # Return gradient penalty
-    return gradient_penalty_weight * ((gradients_norm - 1) ** 2).mean()
+  return real_test, static_test
