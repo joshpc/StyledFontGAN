@@ -92,7 +92,7 @@ def train_discriminator(D, G, D_optimizer, D_loss, data, losses, options):
   real_data = reshape_real_data(data, glyph_size, glyphs_per_image)
 
   # Calculate the loss
-  loss = D_loss(D, real_data, generated_data, losses, options)
+  loss = D_loss(D, G, real_data, generated_data, losses, options)
   loss.backward()
   losses['D'].append(loss.data)
 

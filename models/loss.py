@@ -3,7 +3,7 @@ from operator import itemgetter
 import torch
 from torch.autograd import grad as torch_grad
 
-def wasserstein_loss(D, real_data, generated_data, losses, options):
+def wasserstein_loss(D, G, real_data, generated_data, losses, options):
   real_loss = D(real_data)
   generated_loss = D(generated_data)
 
