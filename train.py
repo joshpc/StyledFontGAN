@@ -25,17 +25,12 @@ def train(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, options):
   loss_plot = PlotLosses()
 
   real_test, static_test = prepare_static_test(data_loader, options)
-  show_grayscale_image(real_test[0].cpu())
-  show_grayscale_image(static_test[0].cpu())
-  show_grayscale_image(G(static_test)[0].cpu())
+  visualize_progress(G, real_test, static_test)
 
   for _ in range(epoch_count):
     train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options)
     record_losses(loss_plot, losses)
-
-    show_grayscale_image(real_test[0].cpu())
-    show_grayscale_image(static_test[0].cpu())
-    show_grayscale_image(G(static_test)[0].cpu())
+    visualize_progress(G, real_test, static_test)
 
 def train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options):
   steps = 0
@@ -101,10 +96,15 @@ def train_discriminator(D, G, D_optimizer, D_loss, data, losses, options):
 
 # --- Helper Functions ---
 
+def visualize_progress(G, real, static):
+  show_grayscale_image(real[0].cpu())
+  show_grayscale_image(static[0].cpu())
+  show_grayscale_image(G(static)[0].cpu())
+
 def prepare_generator_input(image_data, glyph_size, glyphs_per_image):
   base = random.randint(0, glyphs_per_image - 1)
   image_width = glyph_size[1]
-  return image_data[:,:,:,base * image_width:(base + 1) * image_width]
+  return image_data[:, :, :, base * image_width:(base + 1) * image_width]
 
 def reshape_real_data(real_data, glyph_size, glyphs_per_image):
   return real_data[:, :, :, 0:(glyphs_per_image * glyph_size[1])]
@@ -133,11 +133,8 @@ def prepare_static_test(data_loader, options):
   glyph_size, glyphs_per_image, data_type = itemgetter('glyph_size', 'glyphs_per_image', 'data_type')(options)
 
   for data in data_loader:
-    print('=== Test Font ===')
     real_test = reshape_real_data(data, glyph_size, glyphs_per_image)
-    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image)[0:1].type(data_type)
-    print('=== Initial Output ===')
-
+    static_test = prepare_generator_input(data, glyph_size, glyphs_per_image).type(data_type)
     break
 
   return real_test, static_test
