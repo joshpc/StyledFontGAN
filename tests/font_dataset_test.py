@@ -1,6 +1,7 @@
 import sys
 from os.path import dirname, join, abspath
 sys.path.insert(0, abspath(join(dirname(__file__), '../..')))
+#TODO: Swap to syspath.append(path.dirname(path.dirname(path.realpath(file))))
 
 import unittest
 
