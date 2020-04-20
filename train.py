@@ -19,18 +19,26 @@ def train(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, options):
                     `glyph_size` - (tuple or triple, [int, int, (int)]) The size of the image (H, W, C)
                     `glyphs_per_image` - (int) The number of glyphs found on each image
 
+  Returns: Dictionary of losses.
+
   """
   epoch_count = options['epoch_count']
+  visualize = options['visualize']
   losses = collections.defaultdict(list)
   loss_plot = PlotLosses()
 
-  real_test, static_test = prepare_static_test(data_loader, options)
-  visualize_progress(G, real_test, static_test)
+  if visualize:
+    real_test, static_test = prepare_static_test(data_loader, options)
+    visualize_progress(G, real_test, static_test)
 
   for _ in range(epoch_count):
     train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options)
-    record_losses(loss_plot, losses)
-    visualize_progress(G, real_test, static_test)
+
+    if visualize:
+      record_losses(loss_plot, losses)
+      visualize_progress(G, real_test, static_test)
+
+  return losses
 
 def train_epoch(D, G, D_optimizer, G_optimizer, D_loss, G_loss, data_loader, losses, options):
   steps = 0
