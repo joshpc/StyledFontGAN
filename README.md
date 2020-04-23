@@ -8,12 +8,12 @@ This is a simple project that I've been using to teach myself all about GANs, an
 
 A lot of this project is inspired by the following research papers and their associated code:
 
-- MC-GAN - https://github.com/azadis/MC-GAN
-- GlyphGAN - https://arxiv.org/abs/1905.12502v1
-- DC-GAN - https://arxiv.org/abs/1511.06434
-- WGAN-GP - https://arxiv.org/abs/1704.00028
+- [MC-GAN](https://github.com/azadis/MC-GAN) - Multi-Content GAN for Few-Shot Font Style Transfer; Samaneh Azadi, Matthew Fisher, Vladimir Kim, Zhaowen Wang, Eli Shechtman, Trevor Darrell, in arXiv, 2017.
+- [GlyphGAN](https://arxiv.org/abs/1905.12502v1) - GlyphGAN: Style-Consistent Font Generation Based on Generative Adversarial Networks; Hideaki Hayashi, Kohtaro Abe, Seiichi Uchida, in arXiv, 2019
+- [DC-GAN](https://arxiv.org/abs/1511.06434) - Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks; Alec Radford, Luke Metz, Soumith Chintala, in arXiv, 2016
+- [WGAN-GP](https://arxiv.org/abs/1704.00028) - Improved Training of Wasserstein GANs; Ishaan Gulrajani, Faruk Ahmed, Martin Arjovsky, Vincent Dumoulin, Aaron Courville, in arXiv, 2017
 
-Most of the novel discoveries stem from the above projects, and the projects that inspired them.
+This project was made possible by this research and the contributions made by the above authors. Thank you.
 
 ## Architecture
 
@@ -71,7 +71,11 @@ This follows DC-GAN. No magic, or added things here. As with the linked papers f
  ),
 ```
 
+## Results
+
+
 ## Setup
 1. Install `pytorch`: https://pytorch.org/get-started/locally/
 2. For now, you will also need a tool to view notebooks. I use Jupyter.
 3. You need the font dataset. Sneakernet for now.
+4. Dependencies: TBD
