@@ -3,6 +3,10 @@ from operator import itemgetter
 import torch
 from torch.autograd import grad as torch_grad
 
+def l1_and_adversarial_loss(D, G, real_data, generated_data, losses, options):
+  l1_lamba = 10
+  return min_max_loss(D, G, real_data, generated_data, losses, options) + l1_lamba * l1_loss(D, G, real_data, generated_data, losses, options)
+
 def wasserstein_loss(D, G, real_data, generated_data, losses, options):
   real_loss = D(real_data)
   generated_loss = D(generated_data)
