@@ -4,6 +4,8 @@ The original intent of this project was to create a generative adversarial netwo
 ## Motivation Behind This Project
 This is a simple project that I've been using to teach myself all about GANs, and getting familiar with Python. I don't claim to be talented when it comes to machine learning, but I want to understand it's capabilities and the challenges that can arise.
 
+Please note that this is a side project, and not academic research. Ultimately, the goal is to apply this to non-latin alphabets where producing fonts are extremely time consuming.
+
 ## Prior Work and Acknowledgements
 
 A lot of this project is inspired by the following research papers and their associated code:
