@@ -13,6 +13,8 @@ A lot of this project is inspired by the following research papers and their ass
 - [DC-GAN](https://arxiv.org/abs/1511.06434) - Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks; Alec Radford, Luke Metz, Soumith Chintala, in arXiv, 2016
 - [WGAN-GP](https://arxiv.org/abs/1704.00028) - Improved Training of Wasserstein GANs; Ishaan Gulrajani, Faruk Ahmed, Martin Arjovsky, Vincent Dumoulin, Aaron Courville, in arXiv, 2017
 
+- Some pieces of code, specifically the `Flatten` and `Unflatten` methods were pulled from the [CS231N course](https://cs231n.github.io/) samples.
+
 This project was made possible by this research and the contributions made by the above authors. Thank you.
 
 ## Architecture
@@ -73,9 +75,38 @@ This follows DC-GAN. No magic, or added things here. As with the linked papers f
 
 ## Results
 
+This was by no means an academic study nor was it an attempt to push the boundaries of current research, but the results were good.
+
+This project used the data set from [MC-GAN](https://github.com/azadis/MC-GAN) which uses a variety of different fonts and samples. In some cases, the samples are all uppercase letters, while as others are a mix of uppercase and lowercase letters.
+
+### Samples
+
+#### Successes
+In these examples, the results are both legible and match the original style.
+
+![First Font](results/results_2.png)
+![First Font](results/results_5.png)
+![First Font](results/results_6.png)
+![First Font](results/results_7.png)
+![First Font](results/results_8.png)
+
+### Questionable Failures
+![First Font](results/results_1.png)
+The network succeeded in capturing the style, with the dark shadows, but couldn't produce legible letters.
+
+![First Font](results/results_4.png)
+The letters aren't very clear, but despite the strange style, it seems to have respected it.
+
+### Failures
+![First Font](results/results_3.png)
+The network failed to produce legible letters, and failed to copy the style.
+
+### Conclusions
+TBD
 
 ## Setup
+
 1. Install `pytorch`: https://pytorch.org/get-started/locally/
 2. For now, you will also need a tool to view notebooks. I use Jupyter.
-3. You need the font dataset. Sneakernet for now.
-4. Dependencies: TBD
+3.
+3. Dependencies: TBD
