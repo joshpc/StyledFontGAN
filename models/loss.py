@@ -55,7 +55,6 @@ def calculate_gradient_penalty(D, real_data, generated_data, batch_size, gradien
     # Calculate probability of interpolated examples
     probability_interpolated = D(interpolated)
 
-    # TODO: Clean up?
     gradients = torch_grad(outputs=probability_interpolated,
                            inputs=interpolated,
                            grad_outputs=torch.ones(

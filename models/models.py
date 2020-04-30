@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 def build_font_shape_generator(glyph_size=(64, 64, 1), glyph_count=26, dimension=16):
-  #TODO: Describe how flatten/unflattening should work.
   """
   Generator model for our GAN.
 
@@ -16,26 +15,6 @@ def build_font_shape_generator(glyph_size=(64, 64, 1), glyph_count=26, dimension
   Output:
   -
   """
-
-  #TODO: Okay this actually doesn't quite make sense.
-  # We have high res images (64x64) that we downsample to 16x16 greyscale only to upscale immediately after?
-  # We need to take advantage of the large image size to retain as much original information as possible.
-  # We're also going to be generating a large image from a small one.
-  #
-  # 64 x 64 -----> 64 x 1664
-  # Determine what steps we need to take to from A to B
-  # Open questions:
-  # - Is it better to downsample, do a ton of work, then scale up and sharpen?
-  # - Maybe shrink to an internal representation, then backwards conv?
-
-  # Attempt 1
-  # Simply upscale. Go big. Go from 64x64 to 64x1664
-  #
-  # Attempt 2
-  # Conv downwards. Build an internal representation (linear layers.) Then work backwards.
-  #
-  # Attempt 3
-  # Go small, end small. Use a separate network to grow.
 
   return intermediate_generator_alt(glyph_size=glyph_size, glyph_count=glyph_count, dimension=dimension)
 
